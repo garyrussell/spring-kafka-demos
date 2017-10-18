@@ -1,2 +1,2 @@
 # rjug17
-Richmond Jug Oct 18 2017
+Richmond JUG Oct 18 2017
