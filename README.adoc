@@ -75,10 +75,7 @@ It also adds retry and publishing bad messages to a dead-letter topic.
 
 [source, yaml]
 ----
-    kafka:
-      consumer:
-        auto-offset-reset: earliest
-        enable-auto-commit: false
+spring:
     cloud:
       stream:
         bindings:
@@ -87,12 +84,9 @@ It also adds retry and publishing bad messages to a dead-letter topic.
             group: rjug.stream
             consumer:
               concurrency: 2
-              header-mode: raw
             content-type: text/plain
           output:
             destination: rjug.dest.out
-            producer:
-              header-mode: raw
         kafka:
           bindings:
             input:

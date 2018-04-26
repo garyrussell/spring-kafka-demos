@@ -19,6 +19,7 @@ package com.example.v1;
 import java.util.Scanner;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.Consumer;
 
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -43,11 +44,11 @@ public class KafkaSimpleApplication {
 	@Bean
 	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
 		return args -> {
-			String line = "";
 			Scanner scanner = new Scanner(System.in);
+			String line = scanner.nextLine();
 			while (!line.equals("exit")) {
-				line = scanner.nextLine();
 				template.send("rjug", line);
+				line = scanner.nextLine();
 			}
 			scanner.close();
 		};
@@ -55,13 +56,15 @@ public class KafkaSimpleApplication {
 
 	@KafkaListener(topics = "rjug", groupId = "rjug")
 	public void listen(String in,
+			Consumer<?, ?> consumer,
 			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
 		System.out.println(in + " received from partition " + partition);
+//		System.out.println(consumer.metrics());
 	}
 
 	@Bean
 	public NewTopic rjug() {
-		return new NewTopic("rjug", 10, (short) 1);
+		return new NewTopic("rjug", 1, (short) 1);
 	}
 
 }

@@ -18,6 +18,8 @@ package com.example;
 
 import java.util.Scanner;
 
+import org.apache.kafka.clients.admin.NewTopic;
+
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -29,6 +31,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.config.ContainerProperties;
+import org.springframework.kafka.support.DefaultKafkaHeaderMapper;
+import org.springframework.messaging.Message;
 
 /**
  * @author Gary Russell
@@ -44,11 +48,11 @@ public class KafkaIntegrationApplication {
 	@Bean
 	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
 		return args -> {
-			String line = "";
 			Scanner scanner = new Scanner(System.in);
+			String line = scanner.nextLine();
 			while (!line.equals("exit")) {
-				line = scanner.nextLine();
 				template.send("rjugInt", line);
+				line = scanner.nextLine();
 			}
 			scanner.close();
 		};
@@ -57,19 +61,38 @@ public class KafkaIntegrationApplication {
 	@Bean
 	public IntegrationFlow flow(ConsumerFactory<String, String> consumerFactory,
 			KafkaTemplate<Object, Object> template) {
-		ContainerProperties containerProperties = new ContainerProperties("rjugInt");
-		containerProperties.setGroupId("rjugInt");
-		return IntegrationFlows.from(Kafka.messageDrivenChannelAdapter(consumerFactory, containerProperties))
+		return IntegrationFlows.from(Kafka.messageDrivenChannelAdapter(consumerFactory, containerProps()))
 				.filter(p -> !p.equals("ignore"))
+				.enrich(h -> h
+						.headerExpression("originalPayload", "payload")
+						.header("foo", "bar"))
 				.<String, String>transform(String::toUpperCase)
 				.<String, String>transform(s -> s + s)
-				.handle(Kafka.outboundChannelAdapter(template).topic("rjugIntOut"))
+				.handle(Kafka.outboundChannelAdapter(template)
+						.topic("rjugIntOut")
+						.headerMapper(new DefaultKafkaHeaderMapper()))
 				.get();
 	}
 
+	public ContainerProperties containerProps() {
+		ContainerProperties containerProperties = new ContainerProperties("rjugInt");
+		containerProperties.setGroupId("rjugInt");
+		return containerProperties;
+	}
+
 	@KafkaListener(topics = "rjugIntOut", groupId = "rjugInt")
-	public void listen(String in) {
+	public void listen(Message<String> in) {
 		System.out.println(in);
+	}
+
+	@Bean
+	public NewTopic rjugInt() {
+		return new NewTopic("rjugInt", 10, (short) 1);
+	}
+
+	@Bean
+	public NewTopic rjugIntOut() {
+		return new NewTopic("rjugIntOut", 10, (short) 1);
 	}
 
 }

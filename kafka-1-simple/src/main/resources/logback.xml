@@ -15,6 +15,6 @@
   <logger name="org.springframework" level="WARN" />
   <logger name="org.springframework.integration" level="ERROR" />
   <logger name="org.springframework.kafka" level="INFO" />
-  <logger name="org.apache.kafka" level="ERROR" />
+  <logger name="org.apache.kafka" level="INFO" />
 
 </configuration>

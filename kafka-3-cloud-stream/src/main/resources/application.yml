@@ -1,8 +1,4 @@
 spring:
-  kafka:
-    consumer:
-      auto-offset-reset: earliest
-      enable-auto-commit: false
   cloud:
     stream:
       bindings:
@@ -11,12 +7,9 @@ spring:
           group: rjug.stream
           consumer:
             concurrency: 2
-            header-mode: raw
           content-type: text/plain
         output:
           destination: rjug.dest.out
-          producer:
-            header-mode: raw
       kafka:
         bindings:
           input:

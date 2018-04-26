@@ -43,11 +43,11 @@ public class KafkaScstApplication {
 	@Bean
 	public ApplicationRunner runner(KafkaTemplate<byte[], byte[]> template) {
 		return args -> {
-			String line = "";
 			Scanner scanner = new Scanner(System.in);
+			String line = scanner.nextLine();
 			while (!line.equals("exit")) {
-				line = scanner.nextLine();
 				template.send("rjug.dest", line.getBytes());
+				line = scanner.nextLine();
 			}
 			scanner.close();
 		};

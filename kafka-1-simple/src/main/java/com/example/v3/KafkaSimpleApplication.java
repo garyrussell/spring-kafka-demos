@@ -18,6 +18,7 @@ package com.example.v3;
 
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
@@ -40,6 +41,8 @@ import org.springframework.messaging.handler.annotation.SendTo;
 @SpringBootApplication
 public class KafkaSimpleApplication implements ConsumerSeekAware {
 
+	private static ThreadLocal<ConsumerSeekCallback> seekCallback = new ThreadLocal<>();
+
 	public static void main(String[] args) {
 		SpringApplication.run(KafkaSimpleApplication.class, args).close();
 	}
@@ -47,37 +50,49 @@ public class KafkaSimpleApplication implements ConsumerSeekAware {
 	@Bean
 	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
 		return args -> {
-			String line = "";
 			Scanner scanner = new Scanner(System.in);
+			String line = scanner.nextLine();
 			while (!line.equals("exit")) {
-				line = scanner.nextLine();
 				template.send("rjugUpcase", line);
+				line = scanner.nextLine();
 			}
 			scanner.close();
 		};
 	}
 
+	private final AtomicBoolean hasSought = new AtomicBoolean();
+
 	@KafkaListener(topics = "rjug", groupId = "rjug")
 	public void listen(String in,
 			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
 		System.out.println(in + " received from partition " + partition);
+		if (in.equals("RESEEK") && !hasSought.getAndSet(true)) {
+			seekCallback.get().seekToBeginning("rjug", partition);
+		}
 	}
 
 	@KafkaListener(topics = "rjugUpcase", groupId = "rjug")
 	@SendTo("rjug")
-	public String upcase(String in) {
-		System.out.println(in);
+	public String upcase(String in,
+			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
+		System.out.println(in + " received from partition " + partition);
 		return in.toUpperCase();
 	}
 
 	@Bean
 	public NewTopic rjug() {
-		return new NewTopic("rjug", 10, (short) 1);
+		return new NewTopic("rjug", 1, (short) 1);
+	}
+
+	@Bean
+	public NewTopic rjugUpcase() {
+		return new NewTopic("rjugUpcase", 10, (short) 1);
 	}
 
 	@Override
 	public void registerSeekCallback(ConsumerSeekCallback callback) {
 		// save this callback in a ThreadLocal so you can seek from the listener
+		seekCallback.set(callback);
 	}
 
 	@Override

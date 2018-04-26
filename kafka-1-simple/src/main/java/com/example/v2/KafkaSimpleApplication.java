@@ -44,11 +44,11 @@ public class KafkaSimpleApplication {
 	@Bean
 	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
 		return args -> {
-			String line = "";
 			Scanner scanner = new Scanner(System.in);
+			String line = scanner.nextLine();
 			while (!line.equals("exit")) {
-				line = scanner.nextLine();
 				template.send("rjugUpcase", line);
+				line = scanner.nextLine();
 			}
 			scanner.close();
 		};
@@ -62,14 +62,20 @@ public class KafkaSimpleApplication {
 
 	@KafkaListener(topics = "rjugUpcase", groupId = "rjug")
 	@SendTo("rjug")
-	public String upcase(String in) {
-		System.out.println(in);
+	public String upcase(String in,
+			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
+		System.out.println(in + " received from partition " + partition);
 		return in.toUpperCase();
 	}
 
 	@Bean
 	public NewTopic rjug() {
-		return new NewTopic("rjug", 10, (short) 1);
+		return new NewTopic("rjug", 1, (short) 1);
+	}
+
+	@Bean
+	public NewTopic rjugUpcase() {
+		return new NewTopic("rjugUpcase", 10, (short) 1);
 	}
 
 }

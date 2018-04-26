@@ -3,3 +3,4 @@ spring:
     consumer:
       auto-offset-reset: earliest
       enable-auto-commit: false
+      group-id: rjug0.10
