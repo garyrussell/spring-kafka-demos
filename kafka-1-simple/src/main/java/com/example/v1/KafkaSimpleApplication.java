@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,15 @@
 
 package com.example.v1;
 
-import java.util.Scanner;
-
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
 
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
+
+import com.example.Publisher;
 
 /**
  * @author Gary Russell
@@ -42,24 +38,13 @@ public class KafkaSimpleApplication {
 	}
 
 	@Bean
-	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
-		return args -> {
-			Scanner scanner = new Scanner(System.in);
-			String line = scanner.nextLine();
-			while (!line.equals("exit")) {
-				template.send("rjug", line);
-				line = scanner.nextLine();
-			}
-			scanner.close();
-		};
+	public ApplicationRunner runner() {
+		return new Publisher("rjug");
 	}
 
 	@KafkaListener(topics = "rjug", groupId = "rjug")
-	public void listen(String in,
-			Consumer<?, ?> consumer,
-			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
-		System.out.println(in + " received from partition " + partition);
-//		System.out.println(consumer.metrics());
+	public void listen(String in) {
+		System.out.println(in + " received");
 	}
 
 	@Bean

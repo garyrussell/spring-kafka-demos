@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package com.example;
 
-import java.util.Scanner;
-
 import org.apache.kafka.clients.admin.NewTopic;
 
 import org.springframework.boot.ApplicationRunner;
@@ -26,11 +24,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
+import org.springframework.integration.handler.LoggingHandler.Level;
 import org.springframework.integration.kafka.dsl.Kafka;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.config.ContainerProperties;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.ErrorHandler;
+import org.springframework.kafka.listener.SeekToCurrentErrorHandler;
 import org.springframework.kafka.support.DefaultKafkaHeaderMapper;
 import org.springframework.messaging.Message;
 
@@ -46,23 +48,30 @@ public class KafkaIntegrationApplication {
 	}
 
 	@Bean
-	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
-		return args -> {
-			Scanner scanner = new Scanner(System.in);
-			String line = scanner.nextLine();
-			while (!line.equals("exit")) {
-				template.send("rjugInt", line);
-				line = scanner.nextLine();
-			}
-			scanner.close();
-		};
+	public ApplicationRunner runner() {
+		return new Publisher("rjugInt");
 	}
 
 	@Bean
-	public IntegrationFlow flow(ConsumerFactory<String, String> consumerFactory,
-			KafkaTemplate<Object, Object> template) {
-		return IntegrationFlows.from(Kafka.messageDrivenChannelAdapter(consumerFactory, containerProps()))
-				.filter(p -> !p.equals("ignore"))
+	public IntegrationFlow flow(ConcurrentKafkaListenerContainerFactory<String, String> containerFactory,
+			KafkaTemplate<String, String> template, ErrorHandler errorHandler) {
+
+		ConcurrentMessageListenerContainer<String, String> container =
+				containerFactory.createContainer("rjugInt");
+		container.getContainerProperties().setGroupId("rjugInt");
+		container.setErrorHandler(errorHandler);
+		return IntegrationFlows.from(
+					Kafka.messageDrivenChannelAdapter(container))
+				.filter(p -> !p.equals("ignore"), e -> e.discardFlow(
+						f -> f
+							.log(Level.WARN, m -> "Discarding: " + m.getPayload())
+							.channel("nullChannel")))
+				.handle((p, h) -> {
+					if ("fail".equals(p)) {
+						throw new RuntimeException("failed");
+					}
+					return p;
+				})
 				.enrich(h -> h
 						.headerExpression("originalPayload", "payload")
 						.header("foo", "bar"))
@@ -74,20 +83,37 @@ public class KafkaIntegrationApplication {
 				.get();
 	}
 
-	public ContainerProperties containerProps() {
-		ContainerProperties containerProperties = new ContainerProperties("rjugInt");
-		containerProperties.setGroupId("rjugInt");
-		return containerProperties;
-	}
-
 	@KafkaListener(topics = "rjugIntOut", groupId = "rjugInt")
 	public void listen(Message<String> in) {
 		System.out.println(in);
 	}
 
 	@Bean
+	public ErrorHandler errorHandler(DeadLetterPublishingRecoverer recoverer) {
+		return new SeekToCurrentErrorHandler((cr, e) -> {
+			System.out.println(cr.value() + " failed after retries");
+			recoverer.accept(cr, e);
+		});
+	}
+
+	@Bean
+	public DeadLetterPublishingRecoverer recoverer(KafkaTemplate<Object, Object> template) {
+		return new DeadLetterPublishingRecoverer(template);
+	}
+
+	@KafkaListener(topics = "rjugInt.DLT", groupId = "rjugInt")
+	public void listenDLT(String in) {
+		System.out.println(in + " from dead-letter topic");
+	}
+
+	@Bean
 	public NewTopic rjugInt() {
 		return new NewTopic("rjugInt", 10, (short) 1);
+	}
+
+	@Bean
+	public NewTopic rjugIntDLT() {
+		return new NewTopic("rjugInt.DLT", 10, (short) 1);
 	}
 
 	@Bean

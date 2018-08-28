@@ -16,8 +16,6 @@
 
 package com.example.v2;
 
-import java.util.Scanner;
-
 import org.apache.kafka.clients.admin.NewTopic;
 
 import org.springframework.boot.ApplicationRunner;
@@ -25,10 +23,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.SendTo;
+
+import com.example.Publisher;
 
 /**
  * @author Gary Russell
@@ -42,22 +41,8 @@ public class KafkaSimpleApplication {
 	}
 
 	@Bean
-	public ApplicationRunner runner(KafkaTemplate<String, String> template) {
-		return args -> {
-			Scanner scanner = new Scanner(System.in);
-			String line = scanner.nextLine();
-			while (!line.equals("exit")) {
-				template.send("rjugUpcase", line);
-				line = scanner.nextLine();
-			}
-			scanner.close();
-		};
-	}
-
-	@KafkaListener(topics = "rjug", groupId = "rjug")
-	public void listen(String in,
-			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
-		System.out.println(in + " received from partition " + partition);
+	public ApplicationRunner runner() {
+		return new Publisher("rjugUpcase");
 	}
 
 	@KafkaListener(topics = "rjugUpcase", groupId = "rjug")
@@ -66,6 +51,12 @@ public class KafkaSimpleApplication {
 			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
 		System.out.println(in + " received from partition " + partition);
 		return in.toUpperCase();
+	}
+
+	@KafkaListener(topics = "rjug", groupId = "rjug")
+	public void listen(String in,
+			@Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition) {
+		System.out.println(in + " received from partition " + partition);
 	}
 
 	@Bean

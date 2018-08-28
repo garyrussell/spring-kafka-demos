@@ -3,3 +3,5 @@ spring:
     consumer:
       auto-offset-reset: earliest
       enable-auto-commit: false
+    listener:
+      ack-mode: record

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.cloud.stream.messaging.Processor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.SendTo;
 
@@ -41,26 +42,23 @@ public class KafkaScstApplication {
 	}
 
 	@Bean
-	public ApplicationRunner runner(KafkaTemplate<byte[], byte[]> template) {
-		return args -> {
-			Scanner scanner = new Scanner(System.in);
-			String line = scanner.nextLine();
-			while (!line.equals("exit")) {
-				template.send("rjug.dest", line.getBytes());
-				line = scanner.nextLine();
-			}
-			scanner.close();
-		};
+	public ApplicationRunner runner() {
+		return new Publisher("rjug.dest");
 	}
 
 	@StreamListener(Processor.INPUT)
 	@SendTo(Processor.OUTPUT)
 	public String process(String in) {
-		System.out.println(in);
+		System.out.println(in + " (in processor)");
 		if ("fail".equals(in)) {
 			throw new RuntimeException("failed");
 		}
 		return in.toUpperCase();
+	}
+
+	@KafkaListener(id = "rjug.dest.out", topics = "rjug.dest.out")
+	public void listen(byte[] in) {
+		System.out.println(new String(in));
 	}
 
 }
