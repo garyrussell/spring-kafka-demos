@@ -16,8 +16,6 @@
 
 package com.example;
 
-import java.util.Scanner;
-
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -26,7 +24,6 @@ import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.cloud.stream.messaging.Processor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.SendTo;
 
 /**
@@ -58,7 +55,12 @@ public class KafkaScstApplication {
 
 	@KafkaListener(id = "rjug.dest.out", topics = "rjug.dest.out")
 	public void listen(byte[] in) {
-		System.out.println(new String(in));
+		System.out.println(new String(in) + " received from out topic");
+	}
+
+	@KafkaListener(id = "rjug.dest.dlq", topics = "error.rjug.dest.rjug.stream")
+	public void dlq(byte[] in) {
+		System.out.println(new String(in) + " received from dlq");
 	}
 
 }

@@ -93,7 +93,7 @@ public class KafkaIntegrationApplication {
 		return new SeekToCurrentErrorHandler((cr, e) -> {
 			System.out.println(cr.value() + " failed after retries");
 			recoverer.accept(cr, e);
-		});
+		}, 3);
 	}
 
 	@Bean
