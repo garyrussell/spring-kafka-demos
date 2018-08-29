@@ -1,4 +1,4 @@
-= kafka-demos
+= spring-kafka-demos
 
 The enclosed applications are demonstrations of various Spring for Apache Kafka approaches.
 
