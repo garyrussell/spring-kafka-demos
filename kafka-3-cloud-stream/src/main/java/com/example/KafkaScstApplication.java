@@ -23,8 +23,10 @@ import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.cloud.stream.messaging.Processor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.support.ErrorMessage;
 
 /**
  * @author Gary Russell
@@ -61,6 +63,11 @@ public class KafkaScstApplication {
 	@KafkaListener(id = "rjug.dest.dlq", topics = "error.rjug.dest.rjug.stream")
 	public void dlq(byte[] in) {
 		System.out.println(new String(in) + " received from dlq");
+	}
+
+	@ServiceActivator(inputChannel = "errorChannel")
+	public void errors(ErrorMessage em) {
+		System.out.println(em);
 	}
 
 }
