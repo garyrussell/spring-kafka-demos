@@ -1,6 +1,6 @@
-= rjug17
+= kafka-demos
 
-The enclosed applications were demonstrated at the Richmond JUG Meetup Oct 18 2017.
+The enclosed applications are demonstrations of various Spring for Apache Kafka approaches.
 
 They are each Spring Boot applications, initially created by Spring Initializr (https://start.spring.io).
 
@@ -33,15 +33,17 @@ This sample actually comprises 3 evolutions of the same application.
 
 === v1
 
-The first version (package `v1`) us truly the simplest with a single `@KafkaListener` method which simply prints the message to `stdout`.
+The first version (package `v1`) is truly the simplest with a single `@KafkaListener` method which simply prints the message to `stdout`.
 
 Things to note:
 
 - the annotation (as well as the topic listened to) has an attribute 'groupId' - this is used for the kafka `group.id` property to identify the consumer group; it overrides the `group.id` property configured by the consumer factory.
 This was added in version 1.3 to simplify configuration if you wish to use multiple groups in the same application.
+In version 2.0 and later, the `id` property can be used instead of the `groupId`.
 
 - the `NewTopic` `@Bean` - version 1.3 added a `KafkaAdmin` and boot auto-configures it.
 This is used to provision the topic in the broker (if not present); notice that it configures the topic to use 10 partitions.
+The number of partitions for an existing topic will be increased if necessary to match the bean configuration; partitions are not reduced, however.
 
 === v2
 
@@ -50,15 +52,16 @@ The messages are sent to a second listener which upcases the String and sends it
 The `KafkaTemplate` does not support blocking send and receive methods; it also currently does not have async send and receive.
 Until recently, Kafka had no notion of message headers so there was no way to add `replyTo` semantics to outgoing messages.
 This has been resolved in the `0.11` `kafka-clients` library and we expect to add async request/reply to the template at some later date.
-On the message listener, the `@SendTo` annotation can be used to send the output to some aritrary topic, and that is what is used in this example.
+(Update: The `ReplyingKafkaTemplate` was added in version 2.1.3; it is not demonstrated here).
+On the message listener, the `@SendTo` annotation can be used to send the output to some arbitrary topic, and that is what is used in this example.
 
-NOTE: The use of `@SendTo` requires a `KafkaTemplate` to be wired into the message listener container factory; this is not currently done by Spring Boot.
-As can be seen in the overloaded `@Bean` definition in the `Config` class, this is relatively trivial and should be added to Boot shortly, removing the need for this overloaded config.
+NOTE: The use of `@SendTo` requires a `KafkaTemplate` to be wired into the message listener container factory; this is now automatically done by Spring Boot.
 
 === v3
 
 This version implements `ConsumerSeekAware` which enables to the listener to seek to specific offsets, either during initialization, or at runtime.
 Care must be taken to only perform seek operations on the consumer thread, since the kafka consumer provided by the `kafka-clients` library is not thread safe.
+Note: starting with version 2.0, the `Consumer<?, ?>` object can be provided as a parameter to the listener method and you can perform seeks directly there.
 
 == kafka-2-integration
 
@@ -67,6 +70,12 @@ The sample receives a message from kafka, performs some filtering/transformation
 Of course, the kafka channel adapters can be used in any integration scenario, such as receiving a file from FTP and writing its lines to a kafka topic (or vice-versa).
 
 A `@KafkaListener` method is included to print out the messages sent by the integration flow.
+
+This sample now includes some features from the upcoming 2.2 release; specifically:
+
+- Creating of the adapter's container from the `ConcurrentKafkaListenerContainerFactory` - previously, that factory could only be used for `@KafkaListener` methods.
+- The `SeekToCurrentErrorHandler` can now have a recover when delivery retries are exhausted and this sample shows the use of a `DeadLetterPublishingRecoverer`.
+It has a listener for the dead-letter topic.
 
 == kafka-3-cloud-stream
 
@@ -104,3 +113,5 @@ To monitor the output of this application, start console consumers in a terminal
     $ kafka-console-consumer --bootstrap-server localhost:9092 --topic rjug.dest.out --from-beginning
 
     $ kafka-console-consumer --bootstrap-server localhost:9092 --topic error.rjug.dest.rjug.stream --from-beginning
+
+Recent updates to this sample include `@KafkaListener` s for these topics.
